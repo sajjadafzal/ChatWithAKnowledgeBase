@@ -1,5 +1,7 @@
 ﻿using ChatWithAKnowledgeBase;
 using Microsoft.KernelMemory;
+using Microsoft.KernelMemory.AI.Ollama;
+using Microsoft.KernelMemory.DocumentStorage.DevTools;
 using Microsoft.KernelMemory.FileSystem.DevTools;
 using Microsoft.KernelMemory.MemoryStorage.DevTools;
 using System.Net;
@@ -92,7 +94,7 @@ static async Task ImportDocument(HttpClient ollamaClient, string modelName)
 
             break;
         case "2":
-            Console.WriteLine("What would you like to retrieve?"); 
+            Console.WriteLine("What would you like to retrieve?");
             break;
     }
 
@@ -111,7 +113,7 @@ static async Task ImportDocument(HttpClient ollamaClient, string modelName)
 
         Console.WriteLine("Document imported successfully. What would you like to retrieve?");
     }
-    
+
     Console.Write("User > ");
 
     var question = Console.ReadLine();
@@ -130,14 +132,21 @@ static async Task ImportDocument(HttpClient ollamaClient, string modelName)
 
 static MemoryServerless GetMemoryKernel(HttpClient ollamaClient, string modelName)
 {
+    var config = new OllamaConfig
+    {
+        Endpoint = "http://localhost:11434",
+        TextModel = new OllamaModelConfig("llama3.1", 4096),
+        EmbeddingModel = new OllamaModelConfig("nomic-embed-text", 2048),
+    };
+
     var memoryBuilder = new KernelMemoryBuilder();
 
     memoryBuilder.WithCustomPromptProvider(new OllamaPromptProvider());
-    memoryBuilder.WithCustomEmbeddingGenerator(new OllamaTextEmbedding())
-                .WithCustomTextGenerator(new OllamaTextGeneration(ollamaClient, modelName))
+    memoryBuilder.WithOllamaTextGeneration(config)
+                .WithOllamaTextEmbeddingGeneration(config)
+                .WithSimpleFileStorage(new SimpleFileStorageConfig { Directory = "FileDirectory", StorageType = FileSystemTypes.Disk })
                 .WithSimpleVectorDb(new SimpleVectorDbConfig { Directory = "VectorDirectory", StorageType = FileSystemTypes.Disk })
                 .Build<MemoryServerless>();
-
     var memory = memoryBuilder.Build<MemoryServerless>();
 
     return memory;
